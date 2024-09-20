@@ -1,0 +1,14 @@
+# Ignore the virtual environment
+anas/
+venv/
+.venv/
+env/
+.env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# IDE files (if applicable)
+.vscode/
+.idea/
