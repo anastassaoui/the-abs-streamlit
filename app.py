@@ -28,7 +28,6 @@ def load_presence():
 # Main Streamlit App
 def main():
     st.set_page_config(page_title="Absence Management Dashboard", layout="wide")
-
     st.title("📊 Absence Management Dashboard")
 
     # Load the data
@@ -45,6 +44,10 @@ def main():
         first_name, last_name = selected_student.split()
         df_presence = df_presence[(df_presence['firstname'] == first_name) & (df_presence['lastname'] == last_name)]
 
+    # Input for Total Classes
+    st.sidebar.header("Class Settings")
+    total_classes_input = st.sidebar.number_input("Enter the Total Number of Classes", min_value=1, value=10)
+
     # Metrics
     st.subheader("Key Metrics")
     col1, col2 = st.columns(2)
@@ -54,32 +57,49 @@ def main():
     # Layout
     st.subheader("Data Overview")
     col1, col2 = st.columns(2)
-
     with col1:
         st.write("### Users Data")
         st.dataframe(df_users, use_container_width=True)
-
     with col2:
         st.write("### Attendance Records")
         st.dataframe(df_presence, use_container_width=True)
 
     # Attendance Analysis
     st.subheader("Attendance Analysis")
-
-    # Number of classes attended by each user (filtered)
     df_stats = df_presence.groupby(['firstname', 'lastname']).size().reset_index(name='Classes Attended')
+    df_stats['Attendance Rate (%)'] = (df_stats['Classes Attended'] / total_classes_input) * 100
 
-    # Visualization 1: Attendance per User
+    # Visualization 1: Bar chart for Attendance Rate by Each User
     if not df_stats.empty:
         st.write("### Classes Attended by Each User")
-        fig = px.bar(df_stats, x='firstname', y='Classes Attended', 
-                     hover_data=['lastname'], 
-                     color='Classes Attended', 
-                     labels={'firstname': 'First Name', 'Classes Attended': 'Population'},
+        fig_bar = px.bar(df_stats, x='firstname', y='Classes Attended', 
+                         hover_data=['lastname', 'Attendance Rate (%)'], 
+                         color='Classes Attended', 
+                         labels={'firstname': 'First Name', 'Classes Attended': 'Number of Classes Attended'},
+                         height=900,
+                         color_continuous_scale=px.colors.sequential.Oranges)
+        fig_bar.update_layout(barmode='group', xaxis_tickangle=-45)
+        st.plotly_chart(fig_bar)
+
+    # Show table with Attendance Rate
+    st.write("### Detailed Attendance Rates")
+    st.dataframe(df_stats[['firstname', 'lastname', 'Classes Attended', 'Attendance Rate (%)']], use_container_width=True)
+
+    # Visualization 2: Pie chart for Attendance Rates
+    fig_pie = px.pie(df_stats, 
+                     values='Attendance Rate (%)', 
+                     names=df_stats['firstname'] + " " + df_stats['lastname'],
+                     title='Distribution of Attendance Rates',
                      height=1000,
-                     color_continuous_scale=px.colors.sequential.Oranges)  # Change to Reds for gradient
-        fig.update_layout(barmode='group', xaxis_tickangle=-45)
-        st.plotly_chart(fig)
+                     width=1300,
+                     )
+    
+
+    fig_pie.update_traces(textfont=dict(size=16, color='black', family='Arial', weight='bold'))
+
+    
+    # Show the pie chart
+    st.plotly_chart(fig_pie)
 
 if __name__ == "__main__":
     main()
