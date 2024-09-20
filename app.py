@@ -11,7 +11,7 @@ def connect_db():
     conn = psycopg2.connect('postgresql://abs_project_user:XvQmpauXnUqdhlwcG9zPa4R5oPTLNJsR@dpg-creo43rv2p9s73d13u2g-a.frankfurt-postgres.render.com/abs_project', cursor_factory=DictCursor)
     return conn
 
-# Load users data
+#users data
 def load_users():
     conn = connect_db()
     cur = conn.cursor()
@@ -51,27 +51,22 @@ def main():
     st.sidebar.header("Filter Options")
     student_list = df_users['First Name'] + " " + df_users['Last Name']
     selected_student = st.sidebar.selectbox("Select a student", options=["All"] + student_list.tolist())
-    date_range = st.sidebar.date_input("Filter by date range", [])
+
     
     # Filter based on student selection
     if selected_student != "All":
         first_name, last_name = selected_student.split()
         df_presence = df_presence[(df_presence['First Name'] == first_name) & (df_presence['Last Name'] == last_name)]
     
-    # Filter by date range
-    if len(date_range) == 2:
-        start_date, end_date = date_range
-        df_presence = df_presence[(df_presence['Date'] >= pd.to_datetime(start_date)) & (df_presence['Date'] <= pd.to_datetime(end_date))]
-
-    # KPIs and Metrics section
+    
+    # Metrics 
     st.subheader("Key Metrics")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     col1.metric("Total Users", df_users.shape[0])
     col2.metric("Total Attendance Sessions", df_presence.shape[0])
-    attendance_rate = (df_presence.shape[0] / (df_users.shape[0] * 30)) * 100  # Assuming 30 classes per month
-    col3.metric("Attendance Rate", f"{attendance_rate:.2f}%")
 
-    # Layout for Users and Attendance Data
+
+    # Layout
     st.subheader("Data Overview")
     col1, col2 = st.columns(2)
 
@@ -83,7 +78,7 @@ def main():
         st.write("### Attendance Records")
         st.dataframe(df_presence)
 
-    # Attendance statistics section
+    #statistics section
     st.subheader("Attendance Analysis")
 
 
