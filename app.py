@@ -108,8 +108,20 @@ fig_pie = px.pie(df_stats,
                  names=df_stats['firstname'] + " " + df_stats['lastname'],
                  title='Distribution of Attendance Rates',
                  height=1000,
+<<<<<<< Updated upstream
                  width=1300,
                  )
 
 fig_pie.update_traces(textfont=dict(size=16, color='black', family='Arial', weight='bold'))
 st.plotly_chart(fig_pie)
+=======
+                 color_continuous_scale=px.colors.sequential.Reds) 
+    fig.update_layout(barmode='group', xaxis_tickangle=-45)
+    st.plotly_chart(fig)
+
+
+
+
+
+#dfdkfjsd
+>>>>>>> Stashed changes
