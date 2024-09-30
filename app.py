@@ -96,7 +96,9 @@ if selected_student != "All":
     first_name, last_name = selected_student.split()
     df_presence = df_presence[(df_presence['firstname'] == first_name) & (df_presence['lastname'] == last_name)]
     
-    
+
+
+ 
     
 # Metrics
 col1, col2 ,col3,col4,col5 = st.columns(5)
@@ -144,8 +146,18 @@ with col1:
                 Users Data
     </h6>
     
-""", unsafe_allow_html=True)
-    st.dataframe(df_users, use_container_width=True)
+    """, unsafe_allow_html=True)
+
+    selected_columns_users = st.multiselect(
+        "", 
+        options=df_users.columns.tolist(), 
+        default=df_users.columns.tolist()
+    )
+
+    st.dataframe(df_users[selected_columns_users], use_container_width=True)
+
+    
+    
 with col2:
     st.markdown("""
             
@@ -157,8 +169,16 @@ with col2:
                 Attendance Records
     </h6>
     
-""", unsafe_allow_html=True)
-    st.dataframe(df_presence, use_container_width=True)
+    """, unsafe_allow_html=True)
+
+    selected_columns_presence = st.multiselect(
+        "", 
+        options=df_presence.columns.tolist(), 
+        default=df_presence.columns.tolist()
+    )
+
+    st.dataframe(df_presence[selected_columns_presence], use_container_width=True)
+
     
     
     
@@ -208,7 +228,6 @@ with col1:
         st.plotly_chart(fig)
 
 with col2:
-    # Load presence data with date aggregation
     def load_attendance_over_time():
         with connect_db() as conn:
             return pd.read_sql("""
@@ -307,7 +326,7 @@ with col2:
                        title='',
                        labels={'date': 'Date', 'total_attendance': 'Total Attendance'},
                        color='total_attendance',
-                       color_continuous_scale=px.colors.sequential.Greens)
+                       color_continuous_scale=px.colors.sequential.Blues)
 
         fig3.update_layout(xaxis_title='Date', yaxis_title='Total Attendance', height=500)
         st.plotly_chart(fig3)

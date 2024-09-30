@@ -1,6 +1,0 @@
-[theme]
-primaryColor = "#1f77b4"  # Blue accent color
-backgroundColor = "#e0f7fa"  # Light blue background
-secondaryBackgroundColor = "#ffffff"  # White for secondary areas (like sidebar)
-textColor = "#0d47a1"  # Dark blue text color for readability
-font = "sans serif"
