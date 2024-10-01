@@ -21,13 +21,14 @@ def load_users():
     with connect_db() as conn:
         return pd.read_sql("SELECT id, firstname, lastname, email, admin FROM users;", conn)
 
-# Load presence data
+# Load presence data with userid
 def load_presence():
     with connect_db() as conn:
         return pd.read_sql("""
-            SELECT p.id, u.firstname, u.lastname, p.date, p.scannedat
+            SELECT p.id, u.firstname, u.lastname, p.userid, p.date, p.scannedat
             FROM presence p JOIN users u ON p.userid = u.id;
         """, conn)
+
 
 
 
@@ -39,6 +40,12 @@ st.set_page_config(page_title="Absence Management Dashboard", layout="wide")
 tailwind_cdn = """
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Center the table header and cell content */
+        .css-1q8dd3e.e1ewe7hr3 th, .css-1q8dd3e.e1ewe7hr3 td {
+            text-align: center !important;
+        }
+    </style>
 """
 st.markdown(tailwind_cdn, unsafe_allow_html=True)
 
@@ -134,31 +141,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Layout
-col1, col2 = st.columns(2)
+
+    
+st.markdown("""
+        
+<h6 class="text-xl   text-center font-bold mt-10 
+              md:hover:text-blue-400 hover:underline  duration-1000
+             cursor-pointer md:text-2xl md:font-semibold md:-mb-6
+            mb-10 
+            ">
+            Users Data
+</h6>
+
+""", unsafe_allow_html=True)
+
+
+selected_columns_users = st.multiselect(
+    "", 
+    options=df_users.columns.tolist(), 
+    default=df_users.columns.tolist()
+)
+st.dataframe(df_users[selected_columns_users], use_container_width=True)
+
+col1, col2 = st.columns(2)   
+    
 with col1:
-    st.markdown("""
-            
-    <h6 class="text-xl   text-center font-bold mt-10 
-                  md:hover:text-blue-400 hover:underline  duration-1000
-                 cursor-pointer md:text-2xl md:font-semibold md:-mb-6
-                mb-10 
-                ">
-                Users Data
-    </h6>
-    
-    """, unsafe_allow_html=True)
-
-    selected_columns_users = st.multiselect(
-        "", 
-        options=df_users.columns.tolist(), 
-        default=df_users.columns.tolist()
-    )
-
-    st.dataframe(df_users[selected_columns_users], use_container_width=True)
-
-    
-    
-with col2:
     st.markdown("""
             
     <h6 class="text-xl   text-center font-bold mt-10 
@@ -179,7 +186,38 @@ with col2:
 
     st.dataframe(df_presence[selected_columns_presence], use_container_width=True)
 
+with col2:
+
+    df_days_missed = df_presence.groupby(['userid', 'firstname', 'lastname']).size().reset_index(name='days_missed')
+
+
+
+    threshold_days = 3  
+
+    def highlight_poor_attendance(days_missed):
+        return 'color: red' if days_missed > threshold_days else ''
+
+
+    st.markdown("""
+        <h6 class="text-xl   text-center font-bold mt-10 
+                  md:hover:text-blue-400 hover:underline  duration-1000
+                 cursor-pointer md:text-2xl md:font-semibold md:-mb-6
+                mb-10 
+                ">Attendance Records Highlighted</h6>
+    """, unsafe_allow_html=True)
+
+    selected_columns_users = st.multiselect(
+    "", 
+    options=df_users.columns.tolist(), 
+    default=df_users.columns.tolist(),
+    key="user_columns_multiselect"
     
+    )
+    
+    st.dataframe(
+        df_days_missed.style.applymap(highlight_poor_attendance, subset=['days_missed']),
+        use_container_width=True
+    )
     
     
 st.markdown("""
