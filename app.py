@@ -3,25 +3,32 @@ import psycopg2
 from psycopg2.extras import DictCursor
 import pandas as pd
 import plotly.express as px
-
-
+import os
+from langchain_groq import ChatGroq
+#from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+#from langchain_core.runnables import RunnableSequence
+from langchain_core.output_parsers import StrOutputParser
+from dotenv import load_dotenv
+from sklearn.ensemble import IsolationForest
+from prophet import Prophet
 
 
 
 # Database connection function
 def connect_db():
     conn = psycopg2.connect(
-        'postgresql://abs_project_user:XvQmpauXnUqdhlwcG9zPa4R5oPTLNJsR@dpg-creo43rv2p9s73d13u2g-a.frankfurt-postgres.render.com/abs_project',
+        'postgresql://my_abs_data_user:52uhBcZ7nWInFijiPiID1adLpI6yDc43@dpg-cs99ql5svqrc73d92c8g-a.frankfurt-postgres.render.com/my_abs_data',
         cursor_factory=DictCursor
     )
     return conn
 
-# Load user data
+@st.cache_data
 def load_users():
     with connect_db() as conn:
         return pd.read_sql("SELECT id, firstname, lastname, email, admin FROM users;", conn)
 
-# Load presence data with userid
+@st.cache_data
 def load_presence():
     with connect_db() as conn:
         return pd.read_sql("""
@@ -29,6 +36,16 @@ def load_presence():
             FROM presence p JOIN users u ON p.userid = u.id;
         """, conn)
 
+
+
+load_dotenv()
+
+groq_api_key = os.getenv("GROQ_API_KEY")
+
+if not groq_api_key:
+    raise ValueError("Groq API key not found. Make sure it's defined in the .env file.")
+
+llm = ChatGroq(model="llama3-8b-8192", groq_api_key=groq_api_key)
 
 
 
@@ -86,6 +103,8 @@ st.sidebar.markdown("""
 
     
 """, unsafe_allow_html=True)
+
+
 student_list = df_users['firstname'] + " " + df_users['lastname']
 st.sidebar.markdown("""
       
@@ -101,15 +120,17 @@ selected_student = st.sidebar.selectbox("", options=["All"] + student_list.tolis
 # Filtestudent
 if selected_student != "All":
     first_name, last_name = selected_student.split()
-    df_presence = df_presence[(df_presence['firstname'] == first_name) & (df_presence['lastname'] == last_name)]
     
-
-
+    df_presence = df_presence[
+        (df_presence['firstname']   ==   first_name) &
+        (df_presence['lastname']    ==   last_name)
+        ]
+    #df_presence = df_presence[(df_presence['firstname'] = first_name) & (df_presence['last_name'] == last_name)]
+    
  
     
 # Metrics
 col1, col2 ,col3,col4,col5 = st.columns(5)
-
 # Total Users
 col2.markdown("""
     <h3 class="text-2xl font-bold mt-5 hover:text-blue-400 duration-500 cursor-pointer hover:underline md:-mb-12">
@@ -143,16 +164,14 @@ st.markdown("""
 # Layout
 
     
-st.markdown("""
-        
-<h6 class="text-xl   text-center font-bold mt-10 
-              md:hover:text-blue-400 hover:underline  duration-1000
-             cursor-pointer md:text-2xl md:font-semibold md:-mb-6
+st.markdown("""  
+<h6 class=" text-xl   text-center font-bold mt-10 
+            md:hover:text-blue-400 hover:underline  duration-1000
+            cursor-pointer md:text-2xl md:font-semibold md:-mb-6
             mb-10 
             ">
             Users Data
 </h6>
-
 """, unsafe_allow_html=True)
 
 
@@ -199,10 +218,10 @@ with col2:
 
 
     st.markdown("""
-        <h6 class="text-xl   text-center font-bold mt-10 
-                  md:hover:text-blue-400 hover:underline  duration-1000
-                 cursor-pointer md:text-2xl md:font-semibold md:-mb-6
-                mb-10 
+        <h6 class=" text-xl   text-center font-bold mt-10 
+                    md:hover:text-blue-400 hover:underline  duration-1000
+                    cursor-pointer md:text-2xl md:font-semibold md:-mb-6
+                    mb-10 
                 ">Attendance Records Highlighted</h6>
     """, unsafe_allow_html=True)
 
@@ -222,9 +241,9 @@ with col2:
     
 st.markdown("""
             
-    <h6 class="text-xl   text-center font-bold mt-10 
-                  md:hover:text-blue-400 hover:underline  duration-1000
-                 cursor-pointer md:text-5xl md:font-extrabold
+    <h6 class=" text-xl text-center font-bold mt-10 
+                md:hover:text-blue-400 hover:underline  duration-1000
+                cursor-pointer md:text-5xl md:font-extrabold
                 mb-10 underline
                 ">
                 Statistical Analysis
@@ -241,14 +260,13 @@ with col1:
     #each user (filtered)
     df_stats = df_presence.groupby(['firstname', 'lastname']).size().reset_index(name='Classes Attended')
 
-
-    # Visualization 1: Attendance per User
+    # Visualization 1:
     if not df_stats.empty:
         st.markdown("""
 
-        <h6 class="text-xl    font-bold mt-10 text-center
-                      md:hover:text-blue-400 hover:underline  duration-1000
-                     cursor-pointer md:text-2xl md:font-semibold
+        <h6 class=" text-xl font-bold mt-10 text-center
+                    md:hover:text-blue-400 hover:underline duration-1000
+                    cursor-pointer md:text-2xl md:font-semibold
                     -mb-9 
                     ">
                     Classes Attended by Each User
@@ -369,3 +387,75 @@ with col2:
         fig3.update_layout(xaxis_title='Date', yaxis_title='Total Attendance', height=500)
         st.plotly_chart(fig3)
 
+
+
+# Ensure the 'date' column is in datetime format
+df_presence['date'] = pd.to_datetime(df_presence['date'], errors='coerce')
+
+# Now calculate 'days_between'
+df_presence['days_between'] = df_presence.groupby('userid')['date'].diff().dt.days.fillna(0)
+
+
+# Use 'days_between' instead of 'userid' and 'date'
+model = IsolationForest(contamination=0.1)
+df_presence['anomaly'] = model.fit_predict(df_presence[['days_between']])
+
+
+# date datetime format df_attendance_over_time
+df_attendance_over_time['date'] = pd.to_datetime(df_attendance_over_time['date'], errors='coerce')
+
+# Rename 'date' to 'ds' for Prophet (this will be the datetime column)
+df_attendance_over_time.rename(columns={'date': 'ds', 'attendance_count': 'y'}, inplace=True)
+
+# Ensure you have 'ds' (dates) and 'y' (values for prediction) columns for Prophet
+df_attendance_over_time = df_attendance_over_time.set_index('ds').resample('D').sum().reset_index()
+
+# Prophet model fitting
+model = Prophet()
+model.fit(df_attendance_over_time[['ds', 'y']])  # Only pass the 'ds' and 'y' columns
+
+# Create future dataframe and forecast for 30 days
+future = model.make_future_dataframe(periods=30)
+forecast = model.predict(future)
+
+# Plot the forecast
+fig = model.plot(forecast)
+st.pyplot(fig)
+# Summarize the Prophet forecast (last 30 rows)
+forecast_summary = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(30).to_csv(index=False)
+
+
+
+# Summarize dataframe
+df_summary = df_presence.describe().reset_index().to_csv(index=False)
+
+#ask
+user_question = st.text_input("Ask a question about the forecast or attendance data:")
+
+if user_question:
+    # Create context combining both the dataframe summary and Prophet forecast
+    context = f"""
+    The following is a summary of the attendance data:
+    {df_summary}
+
+    The following is a summary of the attendance forecast based on the Prophet model:
+    {forecast_summary}
+
+    Analyze this information and answer the user's question regarding the data and forecast.
+    """
+
+    # Create the system message with the dataframe and Prophet forecast data
+    system_message = SystemMessage(content=context)
+
+    # Add the user's question
+    user_message = HumanMessage(content=user_question)
+
+    # Invoke the Groq AI model
+    result = llm.invoke([system_message, user_message])
+
+    # Parse and display the result
+    parser = StrOutputParser()
+    parsed_result = parser.invoke(result)
+
+    # Show the AI's response in the app
+    st.code(parsed_result, language='python')
